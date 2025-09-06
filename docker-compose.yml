@@ -1,0 +1,42 @@
+version: '3.8'
+
+services:
+  master:
+    image: postgres:15
+    container_name: pg_master
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: dio
+      POSTGRES_DB: mydb
+    ports:
+      - "5432:5432"
+    volumes:
+      - master_data:/var/lib/postgresql/data
+      - ./master/init-master.sh:/docker-entrypoint-initdb.d/init-master.sh
+    command: >
+      postgres -c wal_level=replica
+               -c max_wal_senders=10
+               -c max_replication_slots=10
+               -c hot_standby=on
+               -c listen_addresses='*'
+
+  replica:
+    image: postgres:15
+    container_name: pg_replica
+    environment:
+      POSTGRES_USER: repluser
+      POSTGRES_PASSWORD: replpass
+      POSTGRES_DB: mydb
+    ports:
+      - "5433:5432"
+    depends_on:
+      - master
+    volumes:
+      - replica_data:/var/lib/postgresql/data
+      - ./replica/01-setup-replication.sh:/docker-entrypoint-initdb.d/01-setup-replication.sh
+    command: >
+      postgres
+
+volumes:
+  master_data:
+  replica_data:
