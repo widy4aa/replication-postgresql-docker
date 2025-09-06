@@ -9,7 +9,7 @@ services:
       POSTGRES_PASSWORD: dio
       POSTGRES_DB: mydb
     ports:
-      - "5432:5432"
+      - "5434:5432"
     volumes:
       - master_data:/var/lib/postgresql/data
       - ./master/init-master.sh:/docker-entrypoint-initdb.d/init-master.sh
@@ -28,7 +28,7 @@ services:
       POSTGRES_PASSWORD: replpass
       POSTGRES_DB: mydb
     ports:
-      - "5433:5432"
+      - "5435:5432"
     depends_on:
       - master
     volumes:
