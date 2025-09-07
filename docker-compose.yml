@@ -8,6 +8,7 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: dio
       POSTGRES_DB: mydb
+      # Gunakan PGDATA default
     ports:
       - "5434:5432"
     volumes:
@@ -18,25 +19,40 @@ services:
                -c max_wal_senders=10
                -c max_replication_slots=10
                -c hot_standby=on
+               -c archive_mode=on
+               -c archive_command='cp %p /var/lib/postgresql/data/archive/%f'
                -c listen_addresses='*'
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
   replica:
     image: postgres:15
     container_name: pg_replica
     environment:
-      POSTGRES_USER: repluser
-      POSTGRES_PASSWORD: replpass
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: dio
       POSTGRES_DB: mydb
+      # Gunakan PGDATA default
     ports:
       - "5435:5432"
     depends_on:
-      - master
+      master:
+        condition: service_healthy
     volumes:
       - replica_data:/var/lib/postgresql/data
-      - ./replica/01-setup-replication.sh:/docker-entrypoint-initdb.d/01-setup-replication.sh
-    command: >
-      postgres
+      - ./replica/setup-replica.sh:/setup-replica.sh
+    entrypoint: ["/bin/bash", "/setup-replica.sh"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
 volumes:
   master_data:
+    name: pg_master_data
   replica_data:
+    name: pg_replica_data

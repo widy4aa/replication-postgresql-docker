@@ -1,13 +1,14 @@
 # replication-postgresql-docker
-Simple Replication Postgresql Using Docker
+Simple Replication PostgreSQL Using Docker
 
 ## Deskripsi Proyek
-Proyek ini bertujuan untuk membuat replikasi database PostgreSQL menggunakan Docker. Replikasi database adalah proses sinkronisasi data antara server utama (primary) dan server cadangan (replica) untuk memastikan ketersediaan data yang tinggi dan toleransi kesalahan.
+Proyek ini bertujuan untuk membuat replikasi database PostgreSQL menggunakan Docker. Replikasi database adalah proses sinkronisasi data antara server utama (master) dan server cadangan (replica) untuk memastikan ketersediaan data yang tinggi dan toleransi kesalahan.
 
 ## Fitur
-- Konfigurasi replikasi PostgreSQL dengan mudah menggunakan Docker Compose.
-- Menyediakan server primary dan replica yang saling terhubung.
-- Data yang diubah di server primary akan secara otomatis direplikasi ke server replica.
+- Konfigurasi replikasi PostgreSQL dengan mudah menggunakan Docker Compose
+- Menyediakan server master dan replica yang saling terhubung
+- Data yang diubah di server master akan secara otomatis direplikasi ke server replica
+- Script otomatis untuk memverifikasi status replikasi
 
 ## Prasyarat
 Sebelum memulai, pastikan Anda telah menginstal:
@@ -15,40 +16,79 @@ Sebelum memulai, pastikan Anda telah menginstal:
 - [Docker Compose](https://docs.docker.com/compose/)
 
 ## Cara Menggunakan
+
+### Setup Awal
 1. Clone repositori ini ke komputer Anda:
    ```bash
    git clone https://github.com/username/replication-postgresql-docker.git
    cd replication-postgresql-docker
    ```
 
-2. Jalankan Docker Compose untuk memulai layanan:
+2. Berikan hak akses pada skrip:
+   ```bash
+   chmod +x *.sh
+   chmod +x master/*.sh
+   chmod +x replica/*.sh
+   ```
+
+3. Jika ini adalah setup pertama atau ingin memulai dari awal:
+   ```bash
+   ./clean.sh
+   ```
+
+4. Jalankan container:
    ```bash
    docker-compose up -d
    ```
 
-3. Verifikasi bahwa container telah berjalan:
+### Verifikasi Replikasi
+1. Tes replikasi dengan menambahkan data baru:
    ```bash
-   docker ps
+   ./testing.sh
    ```
 
-4. Masuk ke container PostgreSQL primary:
+2. Connect ke Master dan Replica:
    ```bash
-   docker exec -it primary-container-name psql -U postgres
+   # Connect ke master
+   psql -h localhost -p 5434 -U postgres -d mydb
+   
+   # Connect ke replica
+   psql -h localhost -p 5435 -U postgres -d mydb
    ```
 
-5. Masuk ke container PostgreSQL replica untuk memverifikasi replikasi:
+## Troubleshooting
+
+### Jika Replikasi Tidak Berfungsi
+1. Periksa log container:
    ```bash
-   docker exec -it replica-container-name psql -U postgres
+   docker logs pg_master
+   docker logs pg_replica
    ```
+
+2. Reset dan mulai ulang seluruh setup:
+   ```bash
+   ./clean.sh
+   docker-compose up -d
+   ```
+
+3. Pastikan container berjalan:
+   ```bash
+   docker ps | grep pg_
+   ```
+
+### Masalah Umum
+1. **Masalah Akses Direktori**: Jika melihat error tentang direktori yang tidak dapat diakses, jalankan `./clean.sh` untuk membersihkan volume.
+2. **Replica Tidak Dapat Terhubung**: Pastikan port 5432 tersedia dalam container network.
+3. **Replikasi Gagal**: Pastikan `wal_level` disetel ke `replica` di master.
 
 ## Struktur Proyek
-- `docker-compose.yml`: File konfigurasi Docker Compose untuk mengatur container primary dan replica.
-- `primary`: Direktori yang berisi konfigurasi untuk server primary.
-- `replica`: Direktori yang berisi konfigurasi untuk server replica.
+- `docker-compose.yml`: File konfigurasi Docker Compose
+- `master/`: Konfigurasi untuk node master
+- `replica/`: Konfigurasi untuk node replica
+- `clean.sh`: Skrip untuk membersihkan setup
+- `testing.sh`: Skrip untuk menguji replikasi dengan data
 
-## Catatan
-- Pastikan Anda mengganti `primary-container-name` dan `replica-container-name` dengan nama container yang sesuai di file `docker-compose.yml`.
-- Jika terjadi masalah, periksa log container menggunakan perintah:
-  ```bash
-  docker logs <container-name>
-  ```
+## Catatan Penting
+- Pastikan port 5434 dan 5435 tidak digunakan oleh layanan lain di komputer Anda
+- Replica PostgreSQL berada dalam mode read-only. Write operations hanya dapat dilakukan di master
+- Jika mengubah konfigurasi, jalankan `./clean.sh` sebelum memulai ulang
